@@ -1,0 +1,185 @@
+openapi: 3.0.0
+info:
+  license:
+    name: MIT License
+  version: 1.0.0
+  title: Document store
+  description: Connexion presentation
+servers:
+  - url: /
+tags:
+  - name: documents
+    description: Interactions with documents.
+paths:
+  /documents:
+    get:
+      tags:
+        - documents
+      summary: List all documents
+      operationId: documents.get_all
+      description: Returns list of all documents stored in the bucket.
+      responses:
+        200:
+          description: search results matching criteria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentDetails'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      tags:
+        - documents
+      summary: Create new Document
+      operationId: documents.create
+      description: >
+        Adds document, it returns document id
+        and presigned url to upload Document to bucket.
+      requestBody:
+        description: Information about document and user needed to store data.
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewDocumentRequest'
+      responses:
+        201:
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetails'
+          links:
+            GetDocumentByDocumentId:
+              description: The 'id' value returned in response may be used as 'id' parameter in 'GET /documents/{id}'
+              operationId: adapters.api_client.documents.get_details
+              parameters:
+                id: $response.body#/id
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        500:
+          $ref: '#/components/responses/500'
+  /documents/{id}:
+    get:
+      tags:
+        - documents
+      operationId: documents.get_details
+      summary: Gets details about specific document.
+      parameters:
+        - in: path
+          name: id
+          required: True
+          schema:
+            type: string
+            format: uuid
+            example: d290f1ee-6c54-4b01-90e6-d701748f0851
+            description: ID of the document.
+      responses:
+        200:
+          description: Document found in database.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDetails'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+components:
+  schemas:
+    DocumentDetails:
+      type: object
+      required:
+        - id
+        - name
+        - userId
+        - companyId
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        name:
+          type: string
+          example: 'certificate.pdf'
+        userId:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        companyId:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+          description: ID of the company that user works for.
+        uploadDestination:
+          type: string
+          format: uri
+          description: Presigned url allowing to upload file to storage.
+          example: https://example-bucket.s3.amazonaws.com/81a90f7f-647c/certifficate.pdf?X-Amz-Algorithm...
+        uploaded:
+          type: string
+          format: date-time
+          example: '2016-08-29T09:12:33.001Z'
+          readOnly: True
+          nullable: True
+          description: UTC timestamp when document was uploaded. Null if document was not yet uploaded.
+    NewDocumentRequest:
+      type: object
+      writeOnly: True
+      properties:
+        name:
+          type: string
+          description: Name of the file
+          example: certifficate.pdf
+        amount:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example:
+            '10000'
+          pattern: '^[1-9]\d*$'
+      required:
+        - name
+        - amount
+  responses:
+    400:
+      description: All ids in request, whether params or in-body, must be valid UUID.
+      content:
+        application/json:
+          schema:
+            example:
+              status: 400
+              detail: Provided identifier <{id}> is not valid UUID..
+    401:
+      description: Provided jwt is not valid
+      content:
+        application/json:
+          schema:
+            example:
+              status: 401
+              detail: Unauthorized. Access token is invalid.
+    404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            example:
+              status: 404
+              detail: Object with provided id not found.
+    500:
+      description: Internal error
+      content:
+        application/json:
+          example:
+            status: 500
+            detail: Something was wrong with server.
